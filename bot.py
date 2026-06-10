@@ -5,7 +5,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from telethon import TelegramClient, events
+from telethon import TelegramClient
+from telethon.sessions import StringSession
 from telethon.tl.types import DocumentAttributeFilename
 import uvicorn
 
@@ -29,7 +30,7 @@ client: TelegramClient = None
 @app.on_event("startup")
 async def startup():
     global client
-    client = TelegramClient.from_string(SESSION_STR, API_ID, API_HASH)
+    client = TelegramClient(StringSession(SESSION_STR), API_ID, API_HASH)
     await client.connect()
     print("✅ Telegram client connected")
 
