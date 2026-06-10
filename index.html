@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page to PDF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0e0e0e;
+      --surface:  #161616;
+      --border:   #2a2a2a;
+      --ink:      #f0ede6;
+      --muted:    #6b6b6b;
+      --accent:   #c8f04d;
+      --danger:   #ff5c5c;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'DM Mono', monospace;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    /* ── Ambient glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(200,240,77,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2.5rem;
+    }
+
+    .eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 2.1rem;
+      font-weight: 300;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 em {
+      font-style: italic;
+      font-weight: 300;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .input-row:focus-within {
+      border-color: var(--accent);
+    }
+
+    input[type="url"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 0.85rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--ink);
+      min-width: 0;
+    }
+
+    input[type="url"]::placeholder {
+      color: var(--muted);
+    }
+
+    button {
+      background: var(--accent);
+      color: #0e0e0e;
+      border: none;
+      padding: 0.85rem 1.25rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+
+    button:hover:not(:disabled) { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Status area ── */
+    .status {
+      margin-top: 1.25rem;
+      min-height: 1.5rem;
+      font-size: 0.75rem;
+    }
+
+    .status-idle    { color: transparent; }
+    .status-loading { color: var(--muted); }
+    .status-success { color: var(--accent); }
+    .status-error   { color: var(--danger); }
+
+    /* ── Loading dots ── */
+    .dots::after {
+      content: '';
+      animation: dots 1.4s infinite;
+    }
+    @keyframes dots {
+      0%   { content: '.'; }
+      33%  { content: '..'; }
+      66%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* ── Download button ── */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0.65rem 1.1rem;
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 3px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .download-btn:hover { background: rgba(200,240,77,0.08); }
+
+    /* ── Config notice ── */
+    .config-notice {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(255,92,92,0.06);
+      border: 1px solid rgba(255,92,92,0.2);
+      border-radius: 3px;
+      font-size: 0.7rem;
+      color: #ff9a9a;
+      line-height: 1.7;
+      display: none;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0 1.25rem;
+    }
+
+    .footer {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <p class="eyebrow">PDF Converter</p>
+  <h1>Any page,<br><em>as a PDF.</em></h1>
+  <p class="subtitle">Paste a URL below and we'll convert the webpage into a downloadable PDF for you.</p>
+
+  <div class="input-row">
+    <input type="url" id="urlInput" placeholder="https://example.com/article" autocomplete="off" />
+    <button id="convertBtn" onclick="convert()">Convert →</button>
+  </div>
+
+  <div class="status status-idle" id="status"></div>
+
+  <div id="configNotice" class="config-notice">
+    ⚠ Backend URL not configured. Open this HTML file, find <code>BACKEND_URL</code> near the top of the script, and replace it with your Render.com service URL.
+  </div>
+
+  <hr class="divider" />
+  <p class="footer">Powered by Telegram · Your URL is not stored</p>
+</div>
+
+<script>
+  // ── ⚙️ SET THIS to your Render.com backend URL after deploying ──────────────
+  const BACKEND_URL = "https://YOUR-SERVICE-NAME.onrender.com";
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const statusEl   = document.getElementById("status");
+  const btnEl      = document.getElementById("convertBtn");
+  const inputEl    = document.getElementById("urlInput");
+  const noticeEl   = document.getElementById("configNotice");
+
+  // Show config warning if not set
+  if (BACKEND_URL.includes("YOUR-SERVICE-NAME")) {
+    noticeEl.style.display = "block";
+  }
+
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") convert();
+  });
+
+  function setStatus(type, text) {
+    statusEl.className = `status status-${type}`;
+    statusEl.innerHTML = text;
+  }
+
+  async function convert() {
+    const url = inputEl.value.trim();
+
+    if (!url) {
+      setStatus("error", "Please enter a URL.");
+      return;
+    }
+    if (!url.startsWith("http")) {
+      setStatus("error", "URL must start with http:// or https://");
+      return;
+    }
+    if (BACKEND_URL.includes("YOUR-SERVICE-NAME")) {
+      setStatus("error", "Backend not configured yet. See the notice below.");
+      return;
+    }
+
+    btnEl.disabled = true;
+    setStatus("loading", '<span class="dots">Converting — this may take up to 60 seconds</span>');
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/get-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: "Unknown error" }));
+        throw new Error(err.detail || `Error ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Get filename from Content-Disposition if available
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : "page.pdf";
+
+      setStatus("success",
+        `✓ PDF ready — <a class="download-btn" href="${objectUrl}" download="${filename}">
+          ↓ Download PDF
+        </a>`
+      );
+
+    } catch (err) {
+      setStatus("error", `✗ ${err.message}`);
+    } finally {
+      btnEl.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
