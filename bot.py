@@ -13,8 +13,8 @@ import uvicorn
 # ── Config from environment variables ──────────────────────────────────────────
 API_ID       = int(os.environ["TELEGRAM_API_ID"])
 API_HASH     = os.environ["TELEGRAM_API_HASH"]
-BOT_USERNAME = os.environ["TELEGRAM_BOT_USERNAME"]   # e.g. @WebpagePdfBot
-SESSION_STR  = os.environ["TELEGRAM_SESSION_STRING"]  # generated once (see README)
+BOT_USERNAME = os.environ["TELEGRAM_BOT_USERNAME"]
+SESSION_STR  = os.environ["TELEGRAM_SESSION_STRING"]
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 app = FastAPI()
@@ -53,11 +53,23 @@ async def get_pdf(req: PDFRequest):
         # Step 1: Send /download command to the bot
         await client.send_message(BOT_USERNAME, "/download")
 
-        # Step 2: Wait for bot to ask for the URL (up to 15 seconds)
-        await asyncio.sleep(3)
+        # Step 2: Wait for bot to ask for the URL and capture its message
+        prompt_message = None
+        for _ in range(15):
+            await asyncio.sleep(1)
+            messages = await client.get_messages(BOT_USERNAME, limit=5)
+            for msg in messages:
+                if msg.text and "url" in msg.text.lower():
+                    prompt_message = msg
+                    break
+            if prompt_message:
+                break
 
-        # Step 3: Send the URL
-        await client.send_message(BOT_USERNAME, url)
+        if not prompt_message:
+            raise HTTPException(status_code=504, detail="Bot did not ask for a URL. Try again.")
+
+        # Step 3: Send the URL as a REPLY to the bot's prompt message
+        await client.send_message(BOT_USERNAME, url, reply_to=prompt_message.id)
 
         # Step 4: Wait for the bot to send back a PDF (up to 60 seconds)
         pdf_message = None
